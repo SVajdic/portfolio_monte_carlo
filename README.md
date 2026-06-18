@@ -183,8 +183,8 @@ outputs/
 Clone the repository:
 
 ```bash
-git clone
-cd portfolio monte_carlo
+git clone https://github.com/SVajdic/portfolio_monte_carlo
+cd portfolio_monte_carlo
 ```
 
 Create a virtual environment:
