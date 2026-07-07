@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
+import argparse
 
 from pathlib import Path
+from time import perf_counter
 
 from src.data_loader import load_price_data
 from src.returns import (
@@ -22,7 +24,56 @@ from src.visualization import (
     plot_simulated_paths,
     plot_final_value_distributions,
 )
+from src.parallel import run_parallel_simulations
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Monte Carlo portfolio risk simulator"
+    )
+
+    parser.add_argument(
+        "--mode",
+        choices=["serial","parallel"],
+        default="serial",
+        help="Run simulations serially or in parallel"
+    )
+
+    parser.add_argument(
+        "--n-simulations",
+        type=int,
+        default=10_000,
+        help="Number of Monte Carlo simulations to run",
+    )
+
+    parser.add_argument(
+        "--n-workers",
+        type=int,
+        default=4,
+        help="Number of worker processes for parallel mode",
+    )
+
+    parser.add_argument(
+        "--trading-days",
+        type=int,
+        default=252,
+        help="Number of trading days to simulate",
+    )
+
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random Seed number",
+    )
+
+    parser.add_argument(
+        "--initial-value",
+        type=float,
+        default=10_000,
+        help="Initial portfolio value",
+    )
+
+    return parser.parse_args()
 
 def build_portfolios(n_assets):
     return {
@@ -50,17 +101,40 @@ def evaluate_portfolio(
     covariance_matrix,
     initial_value,
     n_days,
-    n_simulations
+    n_simulations,
+    use_parallel: bool = False,
+    n_workers=4,
+    random_seed=42
 ):
-    paths = simulate_portfolio_paths(
-        initial_value=initial_value,
-        mean_returns=mean_returns,
-        covariance_matrix=covariance_matrix,
-        weights=weights,
-        n_days=n_days,
-        n_simulations=n_simulations,
-        random_seed=42,
-    )
+
+    start_time = perf_counter()
+
+    if use_parallel:
+        paths = run_parallel_simulations(
+            initial_value=initial_value,
+            mean_returns=mean_returns,
+            covariance_matrix=covariance_matrix,
+            weights=weights,
+            n_days=n_days,
+            n_simulations=n_simulations,
+            n_workers=n_workers,
+            random_seed=random_seed,
+            simulation_function=simulate_portfolio_paths,
+        )
+    else:
+        paths = simulate_portfolio_paths(
+            initial_value=initial_value,
+            mean_returns=mean_returns,
+            covariance_matrix=covariance_matrix,
+            weights=weights,
+            n_days=n_days,
+            n_simulations=n_simulations,
+            random_seed=random_seed,
+        )
+
+    elapsed_time = perf_counter() - start_time
+
+    print(f"Simulation Runtime: {elapsed_time:.3f} seconds")
 
     endings = final_values(paths)
     returns = portfolio_returns(paths)
@@ -78,30 +152,37 @@ def evaluate_portfolio(
         "Probability of Loss": prob_loss,
         "Average Max Drawdown": avg_drawdown,
         "5th Percentile": np.percentile(endings, 5),
+        "Runtime Seconds": elapsed_time,
     }
 
-    safe_name = name.lower().replace(" ", "_")
-
-    plot_simulated_paths(
-        paths, 
-        f"outputs/figures/simulated_paths_{safe_name}.png")
-    plot_final_value_distributions(
-        endings, 
-        f"outputs/figures/final_value_distribution_{safe_name}.png")
+#    safe_name = name.lower().replace(" ", "_")
+#
+#    plot_simulated_paths(
+#        paths, 
+#       f"outputs/figures/simulated_paths_{safe_name}.png")
+#    plot_final_value_distributions(
+#        endings, 
+#        f"outputs/figures/final_value_distribution_{safe_name}.png")
 
     return results
 
-    #/print(f"\n{name}")
-    #print("-" * 40)
-    #print(f"Mean Final Value: ${endings.mean():,.2f}")
-    #print(f"95% VaR: {var_95:.2%}")
-    #print(f"95% CVaR: {cvar_95:.2%}")
-    #print(f"5th Percentile Final Value: ${np.percentile(endings, 5):,.2f}")
-    #print(f"Probability of Loss: {prob_loss:.2%}")
-    #print(f"Average Max Drawdown: {avg_drawdown:.2%}")
-
 def main() -> None:
     
+    args = parse_args()
+    n_simulations = args.n_simulations
+    n_days = args.trading_days
+    use_parallel = args.mode == "parallel"
+    n_workers = args.n_workers
+    random_seed = args.seed
+    initial_value = args.initial_value
+
+    print(f"Mode: {args.mode}")
+    print(f"Simulations: {n_simulations}")
+    print(f"Trading Days: {n_days}")
+    print(f"Workers: {n_workers if use_parallel else 'N/A'}")
+    print(f"Random Seed: {random_seed}")
+    print(f"Inital Value: {initial_value}")
+
     #make sure we have a directory to put outputs
     Path("outputs/reports").mkdir(
         parents=True,
@@ -120,10 +201,6 @@ def main() -> None:
     covariance_matrix = annualize_covariance(log_returns)
 
     n_assets = prices.shape[1]
-
-    initial_value = 10_000
-    n_days = 252
-    n_simulations = 10_000
 
     portfolios = build_portfolios(n_assets)
 

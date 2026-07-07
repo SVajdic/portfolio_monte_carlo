@@ -9,6 +9,8 @@ The simulator evaluates multiple portfolio allocation strategies and calculates 
 ---
 
 ## Features
+
+### Simulation and Risk Analysis
 - Historical price data analysis
 - Log return calculation
 - Annualized return and covariance estimation
@@ -23,6 +25,12 @@ The simulator evaluates multiple portfolio allocation strategies and calculates 
 - Visualization of simulated portfolio paths
 - Distribution analysis of final portfolio values
 - CSV report generation
+
+### Software and Performance
+- Supports serial and parallel simulation modes
+- Uses command-line arguments to configure simulation count, trading horizon, work count, and random seed
+- Benchmarks runtime across different simulation sizes
+- Organizes code into modular data loading, simulation, risk metric, plotting, and parallel execution components
 
 ---
 
@@ -54,6 +62,7 @@ portfolio_monte_carlo/
     ├── returns.py
     ├── risk_metrics.py
     ├── simulation.py
+    ├── parallel.py
     └── visualization.py
 
 ```
@@ -77,7 +86,7 @@ Example assets:
 
 ### Return Estimation
 
-Daily log retruns are calculated by:
+Daily log returns are calculated by:
 
 ```text
 r_t = ln(P_t / P_(t-1))
@@ -170,11 +179,17 @@ outputs/
     └── risk_summary.csv
 ```
 
-|Portfolio|Mean Final Value|VaR 95|CVaR 95|Probability of Loss|Average Max Drawdown|5th Percentile|
+|Portfolio|Mean Final Value |VaR 95|CVaR 95|Probability of Loss|Average Max Drawdown|5th Percentile|
 |----|----|----|----|----|----|----|
-|Equal Weight|10961.56930365797|0.0920871013270901|0.1329437067926568|0.2338|-0.09663901939214672|9079.128986729098|
-|Aggressive|11303.326335137004|0.12620247481274158|0.1762766911898625|0.2434|-0.12935261472180495|8737.975251872584|
-|Defensive|10978.953977921437|0.09933228697898706|0.13968494183280605|0.2374|-0.10106104790122042|9006.67713021013|
+|Equal Weight|10961.56|0.092|0.13|0.23|-0.096|9079.12|
+|Aggressive|11303.32|0.12|0.17|0.24|-0.12|8737.97|
+|Defensive|10978.95|0.099|0.13|0.23|-0.10|9006.677|
+
+Number of Simulations|Serial Run Time (s)|Parallel Run Time (s)|
+|---|---|---|
+|10^4|.239|.244|
+|10^5|3.987|4.197|
+|10^6|48.513|46.992|
 
 ---
 
@@ -220,6 +235,23 @@ Run the simulation:
 python main.py
 ```
 
+Command line options:
+```bash
+options:
+  -h, --help            show this help message and exit
+  --mode {serial,parallel}
+                        Run simulations serially or in parallel
+  --n-simulations N_SIMULATIONS
+                        Number of Monte Carlo simulations to run
+  --n-workers N_WORKERS
+                        Number of worker processes for parallel mode
+  --trading-days TRADING_DAYS
+                        Number of trading days to simulate
+  --seed SEED           Random Seed number
+  --initial-value INITIAL_VALUE
+                        Initial portfolio value
+```
+
 Results will be written to:
 `outputs/reports/`
 `outputs/figures/`
@@ -233,7 +265,6 @@ Results will be written to:
 - Portfolio rebalancing
 - Historical stress testing
 - Bootstrap-based simulations
-- Parallelized simulation engine
 - Interactive dashoard using Dash or Streamlit
 
 ---
