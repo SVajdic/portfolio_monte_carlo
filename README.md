@@ -28,6 +28,7 @@ The simulator evaluates multiple portfolio allocation strategies and calculates 
 
 ### Software and Performance
 - Supports serial and parallel simulation modes
+- Parallelization execution by computing batch-level risk summaries inside worker processes
 - Uses command-line arguments to configure simulation count, trading horizon, work count, and random seed
 - Benchmarks runtime across different simulation sizes
 - Organizes code into modular data loading, simulation, risk metric, plotting, and parallel execution components
@@ -185,11 +186,22 @@ outputs/
 |Aggressive|11303.32|0.12|0.17|0.24|-0.12|8737.97|
 |Defensive|10978.95|0.099|0.13|0.23|-0.10|9006.677|
 
-Number of Simulations|Serial Run Time (s)|Parallel Run Time (s)|
-|---|---|---|
-|10^4|.239|.244|
-|10^5|3.987|4.197|
-|10^6|48.513|46.992|
+|Portfolio| Number of Simulations|Serial Run Time (s)|Parallel Run Time (s)|
+|---|---|---|---|
+|Equal Weight|10^4|0.317|0.345|
+|Equal Weight|10^5|5.023|5.032|
+|Equal Weight|10^6|55.162|57.292|
+|Aggressive|10^4|0.318|0.298|
+|Aggressive|10^5|4.426|4.472|
+|Aggressive|10^6|55.328|53.983|
+|Defensive|10^4|0.323|0.324|
+|Defensive|10^5|4.211|4.277|
+|Defensive|10^6|53.705|55.689|
+
+### Notes
+- No meaningful gains from using parallel mode 
+- Pandas appears to be sufficently optimized compared to the added overhead of parallelization
+- 10^7 simulations requires source code modifications in order not to overflow memory
 
 ---
 

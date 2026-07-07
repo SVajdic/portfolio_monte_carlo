@@ -12,6 +12,7 @@ def run_simulation_batch(
     n_days: int,
     random_seed: int,
     simulation_function,
+    n_sample_paths=100,
 ):
     """
     Run one independent Monte Carlo simulation batch
@@ -28,9 +29,22 @@ def run_simulation_batch(
         random_seed=random_seed + batch_id,
     )
 
-    return paths
+    final_values = paths[:,-1]
 
-def run_parallel_simulations(
+    running_max = np.maximum.accumulate(path, axis=1)
+    drawdowns = (paths - running_max) / running_max
+    max_drawdowns = drawdowns.min(axis=1)
+
+    sample_count = min(n_sample_paths, batch_size)
+    sample_paths = paths[:sample_count]
+
+    return {
+        "final_values": final_values,
+        "max_drawdowns": max_drawdowns,
+        "sample_paths": sample_paths,
+    }
+
+def run_parallel_summary_simulations(
     initial_value: float,
     mean_returns,
     covariance_matrix,
@@ -40,6 +54,7 @@ def run_parallel_simulations(
     n_workers: int,
     random_seed: int,
     simulation_function,
+    n_sample_paths=100,
 ):
 
     """
@@ -53,7 +68,9 @@ def run_parallel_simulations(
         for i in range(n_workers)
     ]
 
-    results = []
+    final_values_list = []
+    max_drawdowns_list = []
+    sample_paths_list = []
 
     with ProcessPoolExecutor(max_workers=n_workers) as executor:
         futures = []
@@ -70,10 +87,23 @@ def run_parallel_simulations(
                 n_days,
                 random_seed,
                 simulation_function,
+                n_sample_paths,
             )
             futures.append(future)
 
         for future in as_completed(futures):
-            results.append(future.result())
+            result = future.result()
 
-    return np.vstack(results)
+            final_values_list.append(result["final_values"])
+            max_drawdowns_list.append(result["max_drawdowns"])
+            sample_paths_list.append(result["sample_paths"])
+
+    final_values = np.concatenate(final_values_list)
+    max_drawdowns = np.concatenate(max_drawdowns_list)
+    sample_paths = np.concatenate(sample_paths_list)
+
+    return {
+        "final_values": final_values,
+        "max_drawdowns": max_drawdowns,
+        "sample_paths": sample_paths,
+    }

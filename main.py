@@ -14,7 +14,6 @@ from src.returns import (
 from src.simulation import simulate_portfolio_paths
 from src.risk_metrics import (
     final_values,
-    portfolio_returns,
     value_at_risk,
     conditional_value_at_risk,
     probability_of_loss,
@@ -24,7 +23,7 @@ from src.visualization import (
     plot_simulated_paths,
     plot_final_value_distributions,
 )
-from src.parallel import run_parallel_simulations
+from src.parallel import run_parallel_summary_simulations
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -110,7 +109,7 @@ def evaluate_portfolio(
     start_time = perf_counter()
 
     if use_parallel:
-        paths = run_parallel_simulations(
+        result = run_parallel_summary_simulations(
             initial_value=initial_value,
             mean_returns=mean_returns,
             covariance_matrix=covariance_matrix,
@@ -121,6 +120,12 @@ def evaluate_portfolio(
             random_seed=random_seed,
             simulation_function=simulate_portfolio_paths,
         )
+
+        endings = result["final_values"]
+        max_drawdowns = result["max_drawdowns"]
+        avg_drawdown = max_drawdowns.mean()
+        paths_for_plotting = result["sample_paths"]
+        
     else:
         paths = simulate_portfolio_paths(
             initial_value=initial_value,
@@ -131,18 +136,20 @@ def evaluate_portfolio(
             n_simulations=n_simulations,
             random_seed=random_seed,
         )
+        
+        endings = final_values(paths)
+        avg_drawdown = average_max_drawdown(paths)
+        paths_for_plotting = paths
 
     elapsed_time = perf_counter() - start_time
 
     print(f"Simulation Runtime: {elapsed_time:.3f} seconds")
 
-    endings = final_values(paths)
-    returns = portfolio_returns(paths)
-
+    returns = (endings / initial_value) - 1.0
     var_95 = value_at_risk(returns, confidence_level=0.95)
     cvar_95 = conditional_value_at_risk(returns, confidence_level=0.95)
     prob_loss = probability_of_loss(returns)
-    avg_drawdown = average_max_drawdown(paths)
+    
 
     results = {
         "Portfolio": name,
@@ -155,14 +162,14 @@ def evaluate_portfolio(
         "Runtime Seconds": elapsed_time,
     }
 
-#    safe_name = name.lower().replace(" ", "_")
-#
-#    plot_simulated_paths(
-#        paths, 
-#       f"outputs/figures/simulated_paths_{safe_name}.png")
-#    plot_final_value_distributions(
-#        endings, 
-#        f"outputs/figures/final_value_distribution_{safe_name}.png")
+    safe_name = name.lower().replace(" ", "_")
+
+    plot_simulated_paths(
+        paths_for_plotting, 
+        f"outputs/figures/simulated_paths_{safe_name}.png")
+    plot_final_value_distributions(
+        endings, 
+        f"outputs/figures/final_value_distribution_{safe_name}.png")
 
     return results
 

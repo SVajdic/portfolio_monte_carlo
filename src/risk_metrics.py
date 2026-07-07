@@ -5,13 +5,6 @@ def final_values(portfolio_paths: np.ndarray) -> np.ndarray:
     return portfolio_paths[:,-1]
 
 
-def portfolio_returns(portfolio_paths: np.ndarray) -> np.ndarray:
-    initial_values = portfolio_paths[:,0]
-    ending_values = portfolio_paths[:,-1]
-    return ending_values / initial_values - 1
-
-
-
 def value_at_risk(returns: np.ndarray, confidence_level: float = 0.95) -> float:
     """
     VaR reported as a positive loss value
